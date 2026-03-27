@@ -1,9 +1,16 @@
 {
-  "extends": "./tsconfig.json",
   "compilerOptions": {
+    "target": "ES2023",
     "module": "commonjs",
     "moduleResolution": "node",
     "esModuleInterop": true,
+    "declaration": false,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "skipLibCheck": true,
+    "strictNullChecks": true,
+    "noImplicitAny": false,
     "outDir": "./dist/prisma"
   },
   "include": ["prisma/seed.ts"]
