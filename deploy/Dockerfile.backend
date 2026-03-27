@@ -21,6 +21,9 @@ RUN npx prisma generate
 # Build NestJS app
 RUN npm run build
 
+# Compile seed script to CommonJS
+RUN npx tsc -p tsconfig.seed.json
+
 # =============================================================================
 # Stage 2: Production runtime
 # =============================================================================
@@ -43,6 +46,9 @@ COPY --from=builder /app/prisma/schema.prisma ./prisma/schema.prisma
 COPY --from=builder /app/prisma/seed.ts ./prisma/seed.ts
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 COPY --from=builder /app/tsconfig.json ./tsconfig.json
+COPY --from=builder /app/tsconfig.seed.json ./tsconfig.seed.json
+# Copy compiled seed script
+COPY --from=builder /app/dist/prisma ./dist/prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
