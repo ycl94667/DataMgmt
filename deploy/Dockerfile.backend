@@ -38,9 +38,11 @@ RUN apk add --no-cache python3 make g++ musl-dev
 COPY package*.json ./
 RUN npm ci --omit=dev && npm rebuild pg && npm cache clean --force
 
-# Copy Prisma schema and config for migrations
+# Copy Prisma schema, config, and seed for migrations
 COPY --from=builder /app/prisma/schema.prisma ./prisma/schema.prisma
+COPY --from=builder /app/prisma/seed.ts ./prisma/seed.ts
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
+COPY --from=builder /app/tsconfig.json ./tsconfig.json
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
