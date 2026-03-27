@@ -1,0 +1,55 @@
+# =============================================================================
+# DataMgmt Frontend Dockerfile
+# =============================================================================
+# Stage 1: Build
+FROM node:18-alpine AS builder
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci
+
+# Copy source code
+COPY . .
+
+# Create .env.production with the API URL (NEXT_PUBLIC_* must exist at build time)
+ARG NEXT_PUBLIC_API_URL=http://localhost
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+
+# Disable Next.js telemetry
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Build Next.js app
+RUN npm run build
+
+# =============================================================================
+# Stage 2: Production runtime
+# =============================================================================
+FROM node:18-alpine AS runner
+
+WORKDIR /app
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
+
+# Copy built application (standalone output)
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/package.json ./package.json
+
+# Set correct permissions for Next.js cache
+RUN chown -R nextjs:nodejs /app
+
+USER nextjs
+
+EXPOSE 3000
+
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Next.js runs in standalone mode
+CMD ["npm", "start"]

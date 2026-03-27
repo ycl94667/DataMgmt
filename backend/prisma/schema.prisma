@@ -1,0 +1,344 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ==================== Enums ====================
+
+enum ProjectType {
+  written_exam
+  interview
+}
+
+enum DocType {
+  exam_materials
+  position_table
+  written_score
+  interview_score
+  interview_line
+  real_exam
+  course_materials
+  other
+}
+
+enum TagGroupType {
+  category
+  year
+  region
+  doc_type
+  project
+  video
+  custom
+}
+
+enum VideoPlatform {
+  douyin
+  other
+}
+
+enum AdminRole {
+  super_admin
+  admin
+}
+
+enum AuthCodeStatus {
+  active
+  disabled
+  expired
+}
+
+// ==================== Models ====================
+
+model Category {
+  id        BigInt   @id @default(autoincrement())
+  name      String   @db.VarChar(50)
+  sortOrder Int      @default(0) @map("sort_order")
+  isDeleted Int      @default(0) @map("is_deleted")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  projects  Project[]
+  documents Document[]
+
+  @@map("category")
+}
+
+model Region {
+  id        BigInt   @id @default(autoincrement())
+  name      String   @db.VarChar(50)
+  level     Int
+  parentId  BigInt   @default(0) @map("parent_id")
+  sortOrder Int      @default(0) @map("sort_order")
+  isDeleted Int      @default(0) @map("is_deleted")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  projectProvinces Project[]   @relation("ProvinceRegion")
+  projectCities   Project[]   @relation("CityRegion")
+  projectDistricts Project[]  @relation("DistrictRegion")
+  documentProvinces Document[] @relation("ProvinceRegion")
+  documentCities   Document[] @relation("CityRegion")
+  documentDistricts Document[] @relation("DistrictRegion")
+
+  @@index([parentId], map: "idx_region_parent_id")
+  @@index([level], map: "idx_region_level")
+  @@map("region")
+}
+
+model Project {
+  id         BigInt      @id @default(autoincrement())
+  name       String      @db.VarChar(200)
+  categoryId BigInt      @map("category_id")
+  year       String      @db.VarChar(10)
+  provinceId BigInt      @map("province_id")
+  cityId     BigInt      @map("city_id")
+  districtId BigInt      @map("district_id")
+  type       ProjectType
+  sortOrder  Int         @default(0) @map("sort_order")
+  isDeleted  Int         @default(0) @map("is_deleted")
+  createdAt  DateTime    @default(now()) @map("created_at")
+  updatedAt  DateTime    @updatedAt @map("updated_at")
+  createdBy  BigInt      @map("created_by")
+
+  category         Category          @relation(fields: [categoryId], references: [id])
+  province         Region            @relation("ProvinceRegion", fields: [provinceId], references: [id])
+  city             Region            @relation("CityRegion", fields: [cityId], references: [id])
+  district         Region            @relation("DistrictRegion", fields: [districtId], references: [id])
+  batches          Batch[]
+  documentProjects DocumentProject[]
+  videoProjects    VideoProject[]
+
+  @@index([categoryId], map: "idx_project_category_id")
+  @@index([year], map: "idx_project_year")
+  @@index([provinceId, cityId, districtId], map: "idx_project_region")
+  @@index([type], map: "idx_project_type")
+  @@map("project")
+}
+
+model Batch {
+  id        BigInt    @id @default(autoincrement())
+  name      String    @db.VarChar(100)
+  projectId BigInt    @map("project_id")
+  startTime DateTime? @map("start_time")
+  remark    String?
+  sortOrder Int       @default(0) @map("sort_order")
+  isDeleted Int       @default(0) @map("is_deleted")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  project Project @relation(fields: [projectId], references: [id])
+
+  @@index([projectId], map: "idx_batch_project_id")
+  @@map("batch")
+}
+
+model Document {
+  id         BigInt  @id @default(autoincrement())
+  name       String  @db.VarChar(200)
+  categoryId BigInt  @map("category_id")
+  year       String  @db.VarChar(10)
+  provinceId BigInt  @map("province_id")
+  cityId     BigInt  @map("city_id")
+  districtId BigInt  @map("district_id")
+  docType    DocType @map("doc_type")
+  filePath   String  @map("file_path") @db.VarChar(500)
+  fileName   String  @map("file_name") @db.VarChar(200)
+  fileSize   BigInt  @map("file_size")
+  fileExt    String  @map("file_ext") @db.VarChar(20)
+  version    Int     @default(1)
+  isDeleted  Int     @default(0) @map("is_deleted")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  createdBy  BigInt   @map("created_by")
+
+  category         Category          @relation(fields: [categoryId], references: [id])
+  province         Region            @relation("ProvinceRegion", fields: [provinceId], references: [id])
+  city             Region            @relation("CityRegion", fields: [cityId], references: [id])
+  district         Region            @relation("DistrictRegion", fields: [districtId], references: [id])
+  documentProjects DocumentProject[]
+  documentTags     DocumentTag[]
+  documentVersions DocumentVersion[]
+  authorizationLogs AuthorizationLog[]
+  downloadLogs     DownloadLog[]
+
+  @@index([categoryId], map: "idx_document_category_id")
+  @@index([year], map: "idx_document_year")
+  @@index([docType], map: "idx_document_doc_type")
+  @@index([provinceId, cityId, districtId], map: "idx_document_region")
+  @@map("document")
+}
+
+model DocumentProject {
+  id         BigInt   @id @default(autoincrement())
+  documentId BigInt   @map("document_id")
+  projectId  BigInt   @map("project_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  document Document @relation(fields: [documentId], references: [id])
+  project  Project  @relation(fields: [projectId], references: [id])
+
+  @@unique([documentId, projectId], map: "uk_document_project")
+  @@map("document_project")
+}
+
+model Tag {
+  id        BigInt       @id @default(autoincrement())
+  name      String       @db.VarChar(50)
+  groupType TagGroupType @map("group_type")
+  isDeleted Int          @default(0) @map("is_deleted")
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  documentTags DocumentTag[]
+  videoTags    VideoTag[]
+
+  @@map("tag")
+}
+
+model DocumentTag {
+  id         BigInt   @id @default(autoincrement())
+  documentId BigInt   @map("document_id")
+  tagId      BigInt   @map("tag_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  document Document @relation(fields: [documentId], references: [id])
+  tag      Tag      @relation(fields: [tagId], references: [id])
+
+  @@unique([documentId, tagId], map: "uk_document_tag")
+  @@map("document_tag")
+}
+
+model Video {
+  id        BigInt        @id @default(autoincrement())
+  title     String        @db.VarChar(200)
+  url       String        @db.VarChar(500)
+  platform  VideoPlatform @default(other)
+  isEnabled Int           @default(1) @map("is_enabled")
+  sortOrder Int           @default(0) @map("sort_order")
+  isDeleted Int           @default(0) @map("is_deleted")
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+  createdBy BigInt        @map("created_by")
+
+  videoProjects VideoProject[]
+  videoTags     VideoTag[]
+
+  @@map("video")
+}
+
+model VideoProject {
+  id        BigInt   @id @default(autoincrement())
+  videoId   BigInt   @map("video_id")
+  projectId BigInt   @map("project_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  video   Video   @relation(fields: [videoId], references: [id])
+  project Project @relation(fields: [projectId], references: [id])
+
+  @@unique([videoId, projectId], map: "uk_video_project")
+  @@map("video_project")
+}
+
+model VideoTag {
+  id        BigInt   @id @default(autoincrement())
+  videoId   BigInt   @map("video_id")
+  tagId     BigInt   @map("tag_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  video Video @relation(fields: [videoId], references: [id])
+  tag   Tag   @relation(fields: [tagId], references: [id])
+
+  @@unique([videoId, tagId], map: "uk_video_tag")
+  @@map("video_tag")
+}
+
+model Admin {
+  id           BigInt    @id @default(autoincrement())
+  username     String    @unique @db.VarChar(50)
+  passwordHash String    @map("password_hash") @db.VarChar(255)
+  realName     String    @map("real_name") @db.VarChar(50)
+  role         AdminRole
+  isEnabled    Int       @default(1) @map("is_enabled")
+  lastLoginAt  DateTime? @map("last_login_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@map("admin")
+}
+
+model AuthorizationCode {
+  id            BigInt         @id @default(autoincrement())
+  code          String         @unique @db.VarChar(32)
+  name          String         @db.VarChar(100)
+  description   String?        @db.VarChar(500)
+  status        AuthCodeStatus
+  maxDownloads  Int            @default(-1) @map("max_downloads")
+  downloadCount Int            @default(0) @map("download_count")
+  expiresAt     DateTime?      @map("expires_at")
+  createdBy     BigInt         @map("created_by")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  authorizationLogs AuthorizationLog[]
+
+  @@map("authorization_code")
+}
+
+model AuthorizationLog {
+  id           BigInt   @id @default(autoincrement())
+  authCodeId   BigInt   @map("auth_code_id")
+  documentId   BigInt   @map("document_id")
+  ipAddress    String?  @map("ip_address") @db.VarChar(50)
+  userAgent    String?  @map("user_agent") @db.VarChar(500)
+  downloadedAt DateTime @map("downloaded_at")
+
+  authorizationCode AuthorizationCode @relation(fields: [authCodeId], references: [id])
+  document          Document          @relation(fields: [documentId], references: [id])
+
+  @@map("authorization_log")
+}
+
+model DocumentVersion {
+  id         BigInt   @id @default(autoincrement())
+  documentId BigInt   @map("document_id")
+  version    Int
+  filePath   String   @map("file_path") @db.VarChar(500)
+  fileName   String   @map("file_name") @db.VarChar(200)
+  fileSize   BigInt   @map("file_size")
+  fileExt    String   @map("file_ext") @db.VarChar(20)
+  createdAt  DateTime @default(now()) @map("created_at")
+  createdBy  BigInt   @map("created_by")
+
+  document Document @relation(fields: [documentId], references: [id])
+
+  @@unique([documentId, version], map: "uk_document_version")
+  @@map("document_version")
+}
+
+model AuditLog {
+  id           BigInt   @id @default(autoincrement())
+  operatorId   BigInt?  @map("operator_id")
+  operatorName String?  @map("operator_name") @db.VarChar(50)
+  action       String   @db.VarChar(50)
+  targetType   String   @map("target_type") @db.VarChar(50)
+  targetId     BigInt?  @map("target_id")
+  targetName   String?  @map("target_name") @db.VarChar(200)
+  detail       Json?
+  ipAddress    String?  @map("ip_address") @db.VarChar(50)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("audit_log")
+}
+
+model DownloadLog {
+  id           BigInt   @id @default(autoincrement())
+  documentId   BigInt   @map("document_id")
+  authCodeId   BigInt?  @map("auth_code_id")
+  ipAddress    String?  @map("ip_address") @db.VarChar(50)
+  downloadedAt DateTime @map("downloaded_at")
+
+  document Document @relation(fields: [documentId], references: [id])
+
+  @@map("download_log")
+}
